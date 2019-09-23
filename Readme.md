@@ -2,7 +2,7 @@
 
 The repository contains various strategy for implementing the Infrastructed from Source code.
 
-## Test best configuration
+## Test bed configuration
 
 The kubernetes configuration were tested using the minikube for Windows
 The minikube was configured to use Hyper-V of windows 10, and started using the command

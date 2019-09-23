@@ -1,0 +1,32 @@
+# Get the persistant volume from the  storage class
+
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: servian-pv
+  namespace: servian
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 5Gi
+  hostPath:
+    path: /data/servian-pv/
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: servian
+    name: servian-pvclaim
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: servian-pvclaim
+  namespace: servian
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
