@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kaniko-build-image
+  namespace: servian
+spec:
+  completions: 1
+  template:
+    metadata:
+      name: kaniko-build-image
+      namespace: servian
+    spec:
+      restartPolicy: Never
+      initContainers:
+      - name: init-clone-repo
+        image: alpine/git
+        args:
+            - clone
+            - --single-branch
+            - --
+            - https://github.com/techievee/godemo.git
+            - /workspace/godemo
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+      containers:
+      - name: kaniko
+        image: gcr.io/kaniko-project/executor:latest
+        args: ["--dockerfile=/workspace/godemo/Dockerfile",
+              "--context=/workspace/godemo",
+              "--destination=techievee/godemo:kaniko"]
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+          - name:  registry-creds
+            mountPath: /kaniko/.docker/
+      volumes:
+        - name: registry-creds
+          projected:
+            sources:
+            - secret:
+                name: docker-secret
+                items:
+                - key: .dockerconfigjson
+                  path: config.json
+        - name: workspace
+          emptyDir: {}
+      
