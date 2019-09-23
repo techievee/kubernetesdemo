@@ -24,11 +24,12 @@ The repository contains various strategy for implementing the Kubernetes cluster
         - All the images build using this method are tagged as "kaniko"
     - The image with the "kaniko" tag is pulled when using the servian-build.yaml file.
     - Dockersecrets are required in this configuration as build image is pushed to registry
-<This process can be done using CI/CD Tools automatically)
+
+This process can also be done using CI/CD Tools automatically
 
     
-         git clone https://github.com/techievee/kubernetesdemo.git
-         kubectl apply -f servian-build.yaml
+                git clone https://github.com/techievee/kubernetesdemo.git
+                kubectl apply -f servian-build.yaml
  
 ## Accessing Web interface of deployed Application
 
