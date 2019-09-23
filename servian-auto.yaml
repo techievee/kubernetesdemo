@@ -1,0 +1,252 @@
+#Docker secret remove
+#Job to build container using kaniko during container init removed
+#THe image is pulled using the auto tag
+#
+#
+#create a namespace servian
+apiVersion: v1
+kind: Namespace
+metadata:
+   name: servian
+---
+# Get the persistant volume from the  storage class
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: servian-pv
+  namespace: servian
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 5Gi
+  hostPath:
+    path: /data/servian-pv/
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: servian
+    name: servian-pvclaim
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: servian-pvclaim
+  namespace: servian
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+---
+#The password that need to be used for Redis instance--
+apiVersion: v1
+kind: Secret
+data:
+  redis_pass: cmVkaXNwYXNzd29yZA==
+metadata:  
+  name: servian-secret
+  namespace: servian  
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: servian
+spec:
+  ports:
+    - port: 6379
+      name: redis
+  clusterIP: None
+  selector:
+    app: redis
+---
+#Redis instance
+apiVersion: apps/v1beta2
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: servian
+spec:
+  selector:
+    matchLabels:
+      app: redis 
+  serviceName: redis
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: redis  
+    spec:
+      containers:
+        - name: redis
+          image: redis:5.0.5-alpine
+          imagePullPolicy: Always
+          args: ["--requirepass", "$(REDIS_PASS)","--appendonly", "yes", "--save", "900", "1", "--save", "30", "2"]
+          ports:
+            - containerPort: 6379
+              name: redis
+          livenessProbe:
+            exec:
+                command: ["sh", "-c", "redis-cli -a $(REDIS_PASS) ping"]
+            initialDelaySeconds: 10
+            timeoutSeconds: 5  
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+          env:
+          - name: REDIS_PASS
+            valueFrom:
+              secretKeyRef:
+                name: servian-secret
+                key: redis_pass
+      volumes:
+            - name: redis-data
+              persistentVolumeClaim:
+                claimName: servian-pvclaim
+---
+#Config map for the golang instance
+kind: ConfigMap 
+apiVersion: v1 
+metadata:
+  name: servian-prod
+  namespace: servian
+data:
+  # Configuration values can be set as key-value properties
+  STORAGE: "redis:6379"
+  STORAGE_DB: "0"
+  SERVICE_ADDRESS: ":8888"
+---
+#Nodeport service for the golang
+apiVersion: v1
+kind: Service
+metadata:
+  name: golang
+  namespace: servian
+spec:
+  ports:
+    - port: 8888
+      targetPort: 8888
+      nodePort: 30112
+  type: NodePort
+  selector:
+    app: golang
+---
+#Use kubernetes deployment to deploy the golang application- Build the image using kaniko during the init container phase
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: golang
+  namespace: servian
+spec:
+  selector:
+    matchLabels:
+      app: golang 
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: golang  
+    spec:
+      restartPolicy: Always
+      initContainers:
+      #Init container - To check the redis service 
+      - name: backend-service-check
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nslookup redis; do echo waiting for redis; sleep 2; done;']
+      #Main container       
+      containers:
+        - name: golang
+          image: techievee/godemo:auto
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8888
+              name: golang
+          env:
+            - name: STORAGE
+              value: "redis:6379"
+            - name: STORAGE_DB
+              value: "0"
+            - name: SERVICE_ADDRESS
+              value: ":8888"
+            - name: REDIS_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: servian-secret
+                  key: redis_pass 
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8888
+            initialDelaySeconds: 3
+            periodSeconds: 3 
+---
+#Nodeport service for angular
+apiVersion: v1
+kind: Service
+metadata:
+  name: angular
+  namespace: servian
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30111
+  type: NodePort
+  selector:
+    app: angular
+---
+#Use deployment of Kubernetes to deploy angular app
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: angular
+  namespace: servian
+spec:
+  selector:
+    matchLabels:
+      app: angular 
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: angular  
+    spec:
+      restartPolicy: Always
+      initContainers:
+      #Init container - Wait for golang service  
+      - name: check-for-golangservice
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nslookup golang; do echo waiting for golang; sleep 2; done;']
+        
+      #main container
+      containers:
+        - name: angular
+          image: techievee/angulardemo:auto
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: angular
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 3 
+
+ 
+      
+            
+          
+          
+          
+     
+            
+            
+            
+
+
+ 
