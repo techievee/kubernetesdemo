@@ -1,0 +1,124 @@
+---
+kind: ConfigMap 
+apiVersion: v1 
+metadata:
+  name: servian-prod
+  namespace: servian
+data:
+  # Configuration values can be set as key-value properties
+  STORAGE: "redis:6379"
+  STORAGE_DB: "0"
+  SERVICE_ADDRESS: ":8888"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: golang
+  namespace: servian
+spec:
+  ports:
+    - port: 8888
+      targetPort: 8888
+      nodePort: 30112
+  type: NodePort
+  selector:
+    app: golang
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: golang
+  namespace: servian
+spec:
+  selector:
+    matchLabels:
+      app: golang 
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: golang  
+    spec:
+      restartPolicy: Always
+      initContainers:
+      #Init container - 1, Clone the repository from GIT, into a local volume
+      - name: init-clone-repo
+        image: alpine/git
+        args:
+            - clone
+            - --single-branch
+            - --
+            - https://github.com/techievee/godemo.git
+            - /workspace/godemo
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+          
+      #Init container - 2, Build the image that is pulled in the previous container   
+      - name: kaniko
+        image: gcr.io/kaniko-project/executor:latest
+        args: ["--dockerfile=/workspace/godemo/Dockerfile",
+              "--context=/workspace/godemo",
+              "--destination=techievee/godemo:kaniko"]
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name:  registry-creds
+          mountPath: /kaniko/.docker/
+          
+      #Init container - 3,Wait for the backend container to build  
+      - name: backend-service-check
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nslookup redis; do echo waiting for redis; sleep 2; done;']
+        
+
+               
+      #Main container       
+      containers:
+        - name: golang
+          image: techievee/godemo:kaniko
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8888
+              name: golang
+          env:
+            - name: STORAGE
+              value: "redis:6379"
+            - name: STORAGE_DB
+              value: "0"
+            - name: SERVICE_ADDRESS
+              value: ":8888"
+            - name: REDIS_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: servian-secret
+                  key: redis_pass 
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8888
+            initialDelaySeconds: 3
+            periodSeconds: 3 
+      volumes:
+        - name: registry-creds
+          projected:
+            sources:
+            - secret:
+                name: docker-secret
+                items:
+                - key: .dockerconfigjson
+                  path: config.json
+        - name: workspace
+          emptyDir: {}
+      
+            
+          
+          
+          
+     
+            
+            
+            
+
+
+ 

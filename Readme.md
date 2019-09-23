@@ -11,6 +11,14 @@ minikube -p servian start --vm-driver hyperv --hyperv-virtual-switch "External S
 
 "External switch" is the name of the switch, please refer the name in your Hyper-V network settings.
 
+## Important
+DNS from your host system should be getting resolved using minikube
+Try nslookup minikube
+
+## Important
+Golang exposes the API in port : 30112
+Angular exposes the web interface : 30112
+
 ## Kubernetes dashboard enabling
 
 The dashboard of the kubernetes can be enabled by running
