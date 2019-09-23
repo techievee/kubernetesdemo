@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kaniko-angular
+  namespace: servian
+spec:
+  completions: 1
+  template:
+    metadata:
+      name: kaniko-angular
+      namespace: servian
+    spec:
+      restartPolicy: Never
+      initContainers:
+      - name: init-clone-repo
+        image: alpine/git
+        args:
+            - clone
+            - --single-branch
+            - --
+            - https://github.com/techievee/angulardemo.git
+            - /workspace/angulardemo
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+      containers:
+      - name: kaniko
+        image: gcr.io/kaniko-project/executor:latest
+        args: ["--dockerfile=/workspace/angulardemo/Dockerfile",
+              "--context=/workspace/angulardemo",
+              "--destination=techievee/angulardemo:kaniko"]
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+          - name:  registry-creds
+            mountPath: /kaniko/.docker/
+      volumes:
+        - name: registry-creds
+          projected:
+            sources:
+            - secret:
+                name: docker-secret
+                items:
+                - key: .dockerconfigjson
+                  path: config.json
+        - name: workspace
+          emptyDir: {}
+      
