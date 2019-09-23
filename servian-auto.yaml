@@ -9,7 +9,7 @@ kind: Namespace
 metadata:
   name: servian
 ---
-# Get the persistant volume from the  storage class
+# Get the persistent volume from the  storage class
 kind: PersistentVolume
 apiVersion: v1
 metadata:

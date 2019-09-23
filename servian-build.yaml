@@ -46,6 +46,7 @@ metadata:
   namespace: servian
   selfLink: /api/v1/namespaces/default/secrets/docker-secret
 type: kubernetes.io/dockerconfigjson
+---
 #The password that need to be used for Redis instance--
 apiVersion: v1
 kind: Secret
