@@ -1,0 +1,9 @@
+#The password that need to be used for Redis instance--
+apiVersion: v1
+kind: Secret
+data:
+  redis_pass: cmVkaXNwYXNzd29yZA==
+metadata:  
+  name: servian-secret
+  namespace: servian  
+type: Opaque
