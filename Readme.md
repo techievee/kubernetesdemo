@@ -6,14 +6,16 @@ The repository contains various strategy for implementing the Infrastructure fro
     - The docker image are build using the GITHOOK, as the source code is pushed, the docker image is build using the tag auto
     - The kubnernetes used the auto tag image to set up the kube cluster
    
-   kubectl apply -f https://github.com/techievee/kubernetesdemo/blob/master/servian-auto.yaml
+    * git clone https://github.com/techievee/kubernetesdemo.git
+    * kubectl apply -f servian-auto.yaml
    
 * Approach 2
     - The docker image are build using the Kaniko docker container during the init of container, the docker image is build and pushed using the tag kaniko
     - The kubnernetes used the kaniko tag image to set up the kube cluster
-   
-   kubectl apply -f https://github.com/techievee/kubernetesdemo/blob/master/servian-build.yaml
-
+    
+    * git clone https://github.com/techievee/kubernetesdemo.git
+    * kubectl apply -f servian-build.yaml
+ 
 ## Test bed configuration
 
 One all the pods are deployed, then type, to see the result
