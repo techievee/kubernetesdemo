@@ -7,7 +7,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-   name: servian
+  name: servian
 ---
 # Get the persistant volume from the  storage class
 kind: PersistentVolume
@@ -46,11 +46,12 @@ apiVersion: v1
 kind: Secret
 data:
   redis_pass: cmVkaXNwYXNzd29yZA==
-metadata:  
+metadata:
   name: servian-secret
-  namespace: servian  
+  namespace: servian
 type: Opaque
 ---
+#Redis Service as NodePort
 apiVersion: v1
 kind: Service
 metadata:
@@ -73,13 +74,13 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: redis 
+      app: redis
   serviceName: redis
   replicas: 1
   template:
     metadata:
       labels:
-        app: redis  
+        app: redis
     spec:
       containers:
         - name: redis
@@ -91,26 +92,26 @@ spec:
               name: redis
           livenessProbe:
             exec:
-                command: ["sh", "-c", "redis-cli -a $(REDIS_PASS) ping"]
+              command: ["sh", "-c", "redis-cli -a $(REDIS_PASS) ping"]
             initialDelaySeconds: 10
-            timeoutSeconds: 5  
+            timeoutSeconds: 5
           volumeMounts:
             - name: redis-data
               mountPath: /data
           env:
-          - name: REDIS_PASS
-            valueFrom:
-              secretKeyRef:
-                name: servian-secret
-                key: redis_pass
+            - name: REDIS_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: servian-secret
+                  key: redis_pass
       volumes:
-            - name: redis-data
-              persistentVolumeClaim:
-                claimName: servian-pvclaim
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: servian-pvclaim
 ---
 #Config map for the golang instance
-kind: ConfigMap 
-apiVersion: v1 
+kind: ConfigMap
+apiVersion: v1
 metadata:
   name: servian-prod
   namespace: servian
@@ -144,19 +145,19 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: golang 
+      app: golang
   replicas: 1
   template:
     metadata:
       labels:
-        app: golang  
+        app: golang
     spec:
       restartPolicy: Always
       initContainers:
-      #Init container - To check the redis service 
-      - name: backend-service-check
-        image: busybox:1.28
-        command: ['sh', '-c', 'until nslookup redis; do echo waiting for redis; sleep 2; done;']
+        #Init container - To check the redis service
+        - name: backend-service-check
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup redis; do echo waiting for redis; sleep 2; done;']
       #Main container       
       containers:
         - name: golang
@@ -176,13 +177,13 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: servian-secret
-                  key: redis_pass 
+                  key: redis_pass
           livenessProbe:
             httpGet:
               path: /
               port: 8888
             initialDelaySeconds: 3
-            periodSeconds: 3 
+            periodSeconds: 3
 ---
 #Nodeport service for angular
 apiVersion: v1
@@ -208,20 +209,20 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: angular 
+      app: angular
   replicas: 1
   template:
     metadata:
       labels:
-        app: angular  
+        app: angular
     spec:
       restartPolicy: Always
       initContainers:
-      #Init container - Wait for golang service  
-      - name: check-for-golangservice
-        image: busybox:1.28
-        command: ['sh', '-c', 'until nslookup golang; do echo waiting for golang; sleep 2; done;']
-        
+        #Init container - Wait for golang service
+        - name: check-for-golangservice
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup golang; do echo waiting for golang; sleep 2; done;']
+
       #main container
       containers:
         - name: angular
@@ -236,17 +237,3 @@ spec:
               port: 80
             initialDelaySeconds: 3
             periodSeconds: 3 
-
- 
-      
-            
-          
-          
-          
-     
-            
-            
-            
-
-
- 

@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-   name: servian
+  name: servian
 ---
-# Get the persistant volume from the  storage class
+# Get the persistent volume from the  storage class
 kind: PersistentVolume
 apiVersion: v1
 metadata:
@@ -51,10 +51,24 @@ apiVersion: v1
 kind: Secret
 data:
   redis_pass: cmVkaXNwYXNzd29yZA==
-metadata:  
+metadata:
   name: servian-secret
-  namespace: servian  
+  namespace: servian
 type: Opaque
+---
+#Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: servian
+spec:
+  ports:
+    - port: 6379
+      name: redis
+  clusterIP: None
+  selector:
+    app: redis
 ---
 #Redis instance
 apiVersion: apps/v1beta2
@@ -65,13 +79,13 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: redis 
+      app: redis
   serviceName: redis
   replicas: 1
   template:
     metadata:
       labels:
-        app: redis  
+        app: redis
     spec:
       containers:
         - name: redis
@@ -83,26 +97,26 @@ spec:
               name: redis
           livenessProbe:
             exec:
-                command: ["sh", "-c", "redis-cli -a $(REDIS_PASS) ping"]
+              command: ["sh", "-c", "redis-cli -a $(REDIS_PASS) ping"]
             initialDelaySeconds: 10
-            timeoutSeconds: 5  
+            timeoutSeconds: 5
           volumeMounts:
             - name: redis-data
               mountPath: /data
           env:
-          - name: REDIS_PASS
-            valueFrom:
-              secretKeyRef:
-                name: servian-secret
-                key: redis_pass
+            - name: REDIS_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: servian-secret
+                  key: redis_pass
       volumes:
-            - name: redis-data
-              persistentVolumeClaim:
-                claimName: servian-pvclaim
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: servian-pvclaim
 ---
 #Config map for the golang instance
-kind: ConfigMap 
-apiVersion: v1 
+kind: ConfigMap
+apiVersion: v1
 metadata:
   name: servian-prod
   namespace: servian
@@ -136,47 +150,46 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: golang 
+      app: golang
   replicas: 1
   template:
     metadata:
       labels:
-        app: golang  
+        app: golang
     spec:
       restartPolicy: Always
       initContainers:
-      #Init container - 1, Clone the repository from GIT, into a local volume
-      - name: init-clone-repo
-        image: alpine/git
-        args:
+        #Init container - 1, Clone the repository from GIT, into a local volume
+        - name: init-clone-repo
+          image: alpine/git
+          args:
             - clone
             - --single-branch
             - --
             - https://github.com/techievee/godemo.git
             - /workspace/godemo
-        volumeMounts:
-        - name: workspace
-          mountPath: /workspace
-          
-      #Init container - 2, Build the image that is pulled in the previous container   
-      - name: kaniko
-        image: gcr.io/kaniko-project/executor:latest
-        args: ["--dockerfile=/workspace/godemo/Dockerfile",
-              "--context=/workspace/godemo",
-              "--destination=techievee/godemo:kaniko"]
-        volumeMounts:
-        - name: workspace
-          mountPath: /workspace
-        - name:  registry-creds
-          mountPath: /kaniko/.docker/
-          
-      #Init container - 3,Wait for the backend container to build  
-      - name: backend-service-check
-        image: busybox:1.28
-        command: ['sh', '-c', 'until nslookup redis; do echo waiting for redis; sleep 2; done;']
-        
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
 
-               
+        #Init container - 2, Build the image that is pulled in the previous container
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:latest
+          args: ["--dockerfile=/workspace/godemo/Dockerfile",
+                 "--context=/workspace/godemo",
+                 "--destination=techievee/godemo:kaniko"]
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name:  registry-creds
+              mountPath: /kaniko/.docker/
+
+        #Init container - 3,Wait for the backend container to build
+        - name: backend-service-check
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup redis; do echo waiting for redis; sleep 2; done;']
+
+
       #Main container       
       containers:
         - name: golang
@@ -196,22 +209,22 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: servian-secret
-                  key: redis_pass 
+                  key: redis_pass
           livenessProbe:
             httpGet:
               path: /
               port: 8888
             initialDelaySeconds: 3
-            periodSeconds: 3 
+            periodSeconds: 3
       volumes:
         - name: registry-creds
           projected:
             sources:
-            - secret:
-                name: docker-secret
-                items:
-                - key: .dockerconfigjson
-                  path: config.json
+              - secret:
+                  name: docker-secret
+                  items:
+                    - key: .dockerconfigjson
+                      path: config.json
         - name: workspace
           emptyDir: {}
 ---
@@ -239,45 +252,45 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: angular 
+      app: angular
   replicas: 1
   template:
     metadata:
       labels:
-        app: angular  
+        app: angular
     spec:
       restartPolicy: Always
       initContainers:
-      #Init container - 1, Clone the repository from GIT, into a local volume
-      - name: init-clone-repo
-        image: alpine/git
-        args:
+        #Init container - 1, Clone the repository from GIT, into a local volume
+        - name: init-clone-repo
+          image: alpine/git
+          args:
             - clone
             - --single-branch
             - --
             - https://github.com/techievee/angulardemo.git
             - /workspace/angulardemo
-        volumeMounts:
-        - name: workspace
-          mountPath: /workspace
-          
-      #Init container - 2, Build the image that is pulled in the previous container
-      - name: kaniko
-        image: gcr.io/kaniko-project/executor:latest
-        args: ["--dockerfile=/workspace/angulardemo/Dockerfile",
-              "--context=/workspace/angulardemo",
-              "--destination=techievee/angulardemo:kaniko"]
-        volumeMounts:
-        - name: workspace
-          mountPath: /workspace
-        - name:  registry-creds
-          mountPath: /kaniko/.docker/
-          
-      #Init container - 3,Wait for the backend container to build  
-      - name: check-for-golangservice
-        image: busybox:1.28
-        command: ['sh', '-c', 'until nslookup golang; do echo waiting for golang; sleep 2; done;']
-        
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+
+        #Init container - 2, Build the image that is pulled in the previous container
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:latest
+          args: ["--dockerfile=/workspace/angulardemo/Dockerfile",
+                 "--context=/workspace/angulardemo",
+                 "--destination=techievee/angulardemo:kaniko"]
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name:  registry-creds
+              mountPath: /kaniko/.docker/
+
+        #Init container - 3,Wait for the backend container to build
+        - name: check-for-golangservice
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup golang; do echo waiting for golang; sleep 2; done;']
+
       #main container
       containers:
         - name: angular
@@ -291,29 +304,16 @@ spec:
               path: /
               port: 80
             initialDelaySeconds: 3
-            periodSeconds: 3 
-            
+            periodSeconds: 3
+
       volumes:
         - name: registry-creds
           projected:
             sources:
-            - secret:
-                name: docker-secret
-                items:
-                - key: .dockerconfigjson
-                  path: config.json
+              - secret:
+                  name: docker-secret
+                  items:
+                    - key: .dockerconfigjson
+                      path: config.json
         - name: workspace
           emptyDir: {}
- 
-      
-            
-          
-          
-          
-     
-            
-            
-            
-
-
- 
