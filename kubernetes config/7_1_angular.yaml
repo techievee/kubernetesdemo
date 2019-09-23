@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: angular
+  namespace: servian
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30111
+  type: NodePort
+  selector:
+    app: angular
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: angular
+  namespace: servian
+spec:
+  selector:
+    matchLabels:
+      app: angular 
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: angular  
+    spec:
+      restartPolicy: Always
+      initContainers:
+      #Init container - 1, Clone the repository from GIT, into a local volume
+      - name: init-clone-repo
+        image: alpine/git
+        args:
+            - clone
+            - --single-branch
+            - --
+            - https://github.com/techievee/angulardemo.git
+            - /workspace/angulardemo
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+          
+      #Init container - 2, Build the image that is pulled in the previous container
+      - name: kaniko
+        image: gcr.io/kaniko-project/executor:latest
+        args: ["--dockerfile=/workspace/angulardemo/Dockerfile",
+              "--context=/workspace/angulardemo",
+              "--destination=techievee/angulardemo:kaniko"]
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name:  registry-creds
+          mountPath: /kaniko/.docker/
+          
+      #Init container - 3,Wait for the backend container to build  
+      - name: check-for-golangservice
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nslookup golang; do echo waiting for golang; sleep 2; done;']
+        
+      #main container
+      containers:
+        - name: angular
+          image: techievee/angulardemo:kaniko
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: angular
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 3 
+            
+      volumes:
+        - name: registry-creds
+          projected:
+            sources:
+            - secret:
+                name: docker-secret
+                items:
+                - key: .dockerconfigjson
+                  path: config.json
+        - name: workspace
+          emptyDir: {}
+ 
