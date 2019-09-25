@@ -35,9 +35,11 @@ This process can also be done using CI/CD Tools automatically
 
 One all the pods are deployed, then type, to see the result
 
-* http://minikube:30111
+* http://minikube_ip_address:30111
 
-Where minikube denotes the minikube machine, DNS name
+Where IP of minikube can be got by running the command 
+            * minikube ip 
+ DNS name of the minikube can also be used instead of the IP address
 
 ## Test bed configuration
 
@@ -67,7 +69,7 @@ The dashboard of the minikube can be enabled by running
      kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml
      minikube -p servian dashboard --url
 
-##Kubernetes components and its usages for various purpose:
+## Kubernetes components and its usages for various purpose:
    * Redis - Deployed using Stateful set
    * Redis Disk - Deployed using the Persistent volume and Persistent Volume Claim
    * Configuration for Golang - Using the ConfigMap
